@@ -268,6 +268,8 @@ void start_game(void)
 
 int main(int argc, char * args[])
 {
+	cout << "TIC TAC TOE GAME" <<endl;
+	cout << "Player1 is [X] and player2 is [O]" <<endl;
 	if(argc == 1 || !strcmp(args[1], "1"))
 	{
 		num_players = 1;
