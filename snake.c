@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <stdbool.h>
+#include <unistd.h>  //Header file for sleep(). man 3 sleep for details. 
+#include <stdbool.h>
 //end of includes
 
 //static variables for use in class
@@ -32,6 +34,7 @@ typedef struct coordinate
 {
 	int row;
 	int col;
+	enum Direction dir;
 }Cordinates;
 
 
@@ -41,13 +44,20 @@ typedef struct Block
 	Cordinates location;
 	enum Direction dir;
 	char indicator;
-	struct Block *next;
-	
+	struct Block* next;
 } Block;
+
+typedef struct Instruction
+{
+	Cordinates location;
+	enum Direction dir;
+	struct Instruction *next;
+} command;
 
 Block* HEAD;
 Block* FOOD;
-
+command* c_HEAD = NULL; 
+command* c_TAIL = NULL;
 /***** begin initialization methods */ 
 void welcome_message()
 {
@@ -193,10 +203,13 @@ void free_mem()
 }
 /***** end of initialization methods */ 
 
+bool cont_play = TRUE;
+
 /**  declaration of methods to playing of game **/
 void pause(void);
 void play(void);
 void delay(void);
+void check_command(void);
 void move_snake(void);
 
 int main(void)
@@ -216,13 +229,84 @@ void delay()
 	for(int i=0; i < 100000000; ++i);
 }
 
+void check_command(void) 
+{ 
+    // Store the value argument passed to this thread 
+    //int *myid = (int *)vargp; 
+	int c = -10;
+	c= getch();
+	enum Direction dir;
+	switch(c)
+	{
+		 case KEY_DOWN:
+			dir = DOWN;
+			break;
+		 case KEY_UP:
+			dir = UP;
+			break;
+		 case KEY_LEFT:
+			dir = LEFT;
+			break;
+		 case KEY_RIGHT:
+			dir = RIGHT;
+			break;
+		 case 27:
+			cont_play = FALSE;
+			break;
+		 default:
+			c = -10;
+	}
+	if(c != -10 && c != 27)
+	{
+		if(c_HEAD == NULL)
+		{
+			c_HEAD = (command*)malloc(sizeof(command));
+			c_HEAD->location = HEAD->location;
+			c_HEAD->dir = dir;
+			c_HEAD->next = NULL;
+			c_TAIL = c_HEAD;
+		}
+		else
+		{			
+			command* cmd = (command*)malloc(sizeof(command));
+			cmd->location = HEAD->location;
+			cmd->dir = dir;
+			cmd->next = NULL;
+			c_TAIL->next = cmd;
+			c_TAIL = cmd;
+		}
+	}
+	
+}
+
 void play(void)
 {
+	nodelay(stdscr, TRUE);
+	keypad(stdscr,TRUE);
 	int i = 0;
-	while(i++ < 10)
+	while(1)
 	{
 		move_snake();
+		check_command();
+		if(!cont_play)
+		{
+			return;
+		}
 		delay();
+	}
+}
+
+void check_dir(Block* b)
+{
+	command *temp = c_HEAD;
+	while(temp != NULL)
+	{
+		if(temp->location.row == b->location.row && temp->location.col == b->location.col)
+		{
+			b->dir = temp->dir;
+			return;
+		}
+		temp = temp->next;
 	}
 }
 
@@ -231,10 +315,25 @@ void move_snake()
 	Block* curr = HEAD;
 	while(curr != NULL)
 	{
+		
 		mvaddch(curr->location.row, curr->location.col, ' ');
-		doupdate();
-		++curr->location.col;
+		check_dir(curr);
+		switch(curr->dir)
+		{
+			case RIGHT:
+				++curr->location.col;
+				break;
+			case LEFT:
+				--curr->location.col;
+				break;
+			case DOWN:
+				++curr->location.row;
+				break;
+			case UP:
+				--curr->location.row;
+		}
 		curr = curr->next;
+	
 	}
 	draw_snake();
 }
