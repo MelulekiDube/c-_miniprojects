@@ -10,9 +10,14 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <stdbool.h>
+#include <unistd.h>  //Header file for sleep(). man 3 sleep for details. 
+#include <stdbool.h>
+#include <time.h>	
 //end of includes
 
+
 //static variables for use in class
+static const int BOUNDARY_HEIGHT_START = 2;
 static const int BOUNDARY_HEIGHT = 25;
 static const int BOUNDARY_WIDTH  = 60; 
 static const int BOUNDARY_HEIGHT_MID = 12;
@@ -32,6 +37,7 @@ typedef struct coordinate
 {
 	int row;
 	int col;
+	enum Direction dir;
 }Cordinates;
 
 
@@ -41,13 +47,21 @@ typedef struct Block
 	Cordinates location;
 	enum Direction dir;
 	char indicator;
-	struct Block *next;
-	
+	struct Block* next;
 } Block;
 
-Block* HEAD;
-Block* FOOD;
+typedef struct Instruction
+{
+	Cordinates location;
+	enum Direction dir;
+	struct Instruction *next;
+} command;
 
+Block* HEAD;
+Block* TAIL;
+Block* FOOD;
+command* c_HEAD = NULL; 
+command* c_TAIL = NULL;
 /***** begin initialization methods */ 
 void welcome_message()
 {
@@ -87,28 +101,28 @@ void get_name(void)
 	getnstr( user_name, sizeof( user_name ) - 1 );
 }
 
-Block* new_block(Block* prev)
+Block* new_block()
 {
 	Block* blc = (struct Block*)malloc(sizeof(Block));
 	blc->indicator = 254;
-	Cordinates cod = prev->location;
-	switch(prev->dir)
+	Cordinates cod = TAIL->location;
+	switch(TAIL->dir)
 	{
 		case RIGHT:
-			cod.col = prev->location.col-1;
+			cod.col = TAIL->location.col-1;
 			break;
 		case LEFT:
-			cod.col =prev->location.col+1;
+			cod.col =TAIL->location.col+1;
 			break;
 		case DOWN:
-			cod.row = prev->location.row+1;
+			cod.row = TAIL->location.row+1;
 			break;
 		case UP:
-			cod.row = prev->location.row-1;
+			cod.row = TAIL->location.row-1;
 			break;
 	}
 	blc->location = cod;
-	blc->dir = prev->dir;
+	blc->dir = TAIL->dir;
 	blc->next = NULL;
 	return blc;
 }
@@ -139,7 +153,9 @@ void init_snake(void)
 	Cordinates cod = {2+BOUNDARY_HEIGHT_MID, BOUNDARY_WIDTH_MID};
 	HEAD->location = cod;
 	HEAD->dir = RIGHT;
+	TAIL = HEAD;
 	HEAD->next = new_block(HEAD);
+	TAIL = HEAD->next;
 	draw_snake();
 }
 
@@ -150,6 +166,8 @@ void init_food(void)
 	int x, y;
 	x = rand() % BOUNDARY_WIDTH;
 	y = rand() % BOUNDARY_HEIGHT;
+	y += (y > 2)?0:3;
+	if(x==0) ++x;
 	Cordinates cod = {y, x};
 	FOOD->location = cod;
 	FOOD->dir = STILL;
@@ -165,7 +183,7 @@ void init_term(void)
 	addstr(user_name);
 	move(0, 30);
 	printw("Score: %d", score);
-	mvaddstr(2, 0, boundary);
+	mvaddstr(BOUNDARY_HEIGHT_START, 0, boundary);
 	int i = 3;
 	for(; i < BOUNDARY_HEIGHT; ++i)
 	{
@@ -193,14 +211,19 @@ void free_mem()
 }
 /***** end of initialization methods */ 
 
+bool cont_play = TRUE;
+
 /**  declaration of methods to playing of game **/
 void pause(void);
 void play(void);
 void delay(void);
+void check_command(void);
 void move_snake(void);
 
 int main(void)
 {
+	time_t t;
+	srand((unsigned) time(&t));
 	setlocale(LC_ALL,"");
 	initscr(); //creates stdscreen
 	welcome_message();
@@ -216,14 +239,123 @@ void delay()
 	for(int i=0; i < 100000000; ++i);
 }
 
+void check_command(void) 
+{ 
+    // Store the value argument passed to this thread 
+    //int *myid = (int *)vargp; 
+	int c = -10;
+	c= getch();
+	enum Direction dir;
+	switch(c)
+	{
+		 case KEY_DOWN:
+			if(HEAD->dir == UP)
+				c = -10;
+			else
+				dir = DOWN;
+			break;
+		 case KEY_UP:
+			if(HEAD->dir == DOWN)
+				c = -10;
+			else
+				dir = UP;
+			break;
+		 case KEY_LEFT:
+			if(HEAD->dir == RIGHT)
+				c = -10;
+			else
+				dir = LEFT;
+			break;
+		 case KEY_RIGHT:
+			if(HEAD->dir == LEFT)
+				c = -10;
+			else
+				dir = RIGHT;
+			break;
+		 case 27:
+			cont_play = FALSE;
+			break;
+		 default:
+			c = -10;
+	}
+	if(c != -10 && c != 27)
+	{
+		if(c_HEAD == NULL)
+		{
+			c_HEAD = (command*)malloc(sizeof(command));
+			c_HEAD->location = HEAD->location;
+			c_HEAD->dir = dir;
+			c_HEAD->next = NULL;
+			c_TAIL = c_HEAD;
+		}
+		else
+		{			
+			command* cmd = (command*)malloc(sizeof(command));
+			cmd->location = HEAD->location;
+			cmd->dir = dir;
+			cmd->next = NULL;
+			c_TAIL->next = cmd;
+			c_TAIL = cmd;
+		}
+	}
+	
+}
+
 void play(void)
 {
+	nodelay(stdscr, TRUE);
+	keypad(stdscr,TRUE);
 	int i = 0;
-	while(i++ < 10)
+	while(1)
 	{
 		move_snake();
+		check_command();
+		if(!cont_play)
+		{
+			return;
+		}
 		delay();
 	}
+}
+static int s =0;
+void check_dir(Block* b)
+{
+	command *temp = c_HEAD;
+	while(temp != NULL)
+	{
+		if(temp->location.row == b->location.row && temp->location.col == b->location.col)
+		{
+			++s;
+			b->dir = temp->dir;
+			mvprintw(BOUNDARY_HEIGHT+2, 0, "%i\n", b->dir);
+			refresh();
+			if(b->next == NULL && temp == c_HEAD) //THIS IS THE LAST BLOCK TO EXEC INSTRUCT
+			{
+				command* nh = c_HEAD;
+				c_HEAD = c_HEAD->next;
+				free(nh);
+			}
+			return;
+		}
+		temp = temp->next;
+	}
+}
+
+void check_explosion()
+{
+	if(HEAD->location.col ==0 ||HEAD->location.col == BOUNDARY_WIDTH||
+	HEAD->location.row == BOUNDARY_HEIGHT || HEAD->location.row == BOUNDARY_HEIGHT_START)
+	{
+		cont_play = false;
+		mvprintw(BOUNDARY_HEIGHT_MID, BOUNDARY_WIDTH_MID, "GAME OVER!!!!");
+	}
+}
+
+void grow_snake()
+{
+	Block* b = new_block();
+	TAIL->next = b;
+	TAIL = b;
 }
 
 void move_snake()
@@ -231,10 +363,36 @@ void move_snake()
 	Block* curr = HEAD;
 	while(curr != NULL)
 	{
+		check_dir(curr);
 		mvaddch(curr->location.row, curr->location.col, ' ');
-		doupdate();
-		++curr->location.col;
+		switch(curr->dir)
+		{
+			case RIGHT:
+				++curr->location.col;
+				break;
+			case LEFT:
+				--curr->location.col;
+				break;
+			case DOWN:
+				++curr->location.row;
+				break;
+			case UP:
+				--curr->location.row;
+		}
+		if(curr == HEAD && curr->location.row == FOOD->location.row &&
+			curr->location.col == FOOD->location.col)
+			{
+				grow_snake();
+				int x = rand() % BOUNDARY_WIDTH;
+				int y = rand() % BOUNDARY_HEIGHT;
+				y += (y > 2)?0:3;
+				if(x==0)++x;
+				Cordinates cod = {y, x};
+				FOOD->location = cod;
+				draw_food();
+			}
 		curr = curr->next;
 	}
+	check_explosion();
 	draw_snake();
 }
