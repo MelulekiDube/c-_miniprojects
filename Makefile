@@ -19,7 +19,7 @@ $(OBJECTS): $(SRC)
 
 #snake games
 snake: snake.c
-	$(CC) $< -o $@ $(LL) $(CCFLAGS)
+	$(CC) $< -o $@ $(LL) $(CCFLAGS) 
 	
 run:
 	./$(TARGET)
