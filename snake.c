@@ -10,16 +10,16 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <stdbool.h>
-#include <unistd.h>  //Header file for sleep(). man 3 sleep for details. 
+#include <unistd.h>  //Header file for sleep(). man 3 sleep for details.
 #include <stdbool.h>
-#include <time.h>	
+#include <time.h>
 //end of includes
 
 
 //static variables for use in class
 static const int BOUNDARY_HEIGHT_START = 2;
 static const int BOUNDARY_HEIGHT = 25;
-static const int BOUNDARY_WIDTH  = 60; 
+static const int BOUNDARY_WIDTH  = 60;
 static const int BOUNDARY_HEIGHT_MID = 12;
 static const int BOUNDARY_WIDTH_MID = 30;
 static char user_name[100];
@@ -27,7 +27,7 @@ static char user_name[100];
 static int score = 0;
 static int length = 0;
 
-typedef char* _string;	
+typedef char* _string;
 
 //determines the direction of the blocks of the snake
 enum Direction{STILL, RIGHT, LEFT, UP, DOWN};
@@ -60,9 +60,9 @@ typedef struct Instruction
 Block* HEAD;
 Block* TAIL;
 Block* FOOD;
-command* c_HEAD = NULL; 
+command* c_HEAD = NULL;
 command* c_TAIL = NULL;
-/***** begin initialization methods */ 
+/***** begin initialization methods */
 void welcome_message()
 {
 	clear();
@@ -86,7 +86,7 @@ void welcome_message()
 /*
 void change_color()
 {
-	start_color();			 //Start color 
+	start_color();			 //Start color
 	init_pair(1, COLOR_RED, COLOR_BLACK);
 	attron(COLOR_PAIR(1));
 	attroff(COLOR_PAIR(1));
@@ -209,12 +209,12 @@ void free_mem()
 		free(temp);
 	}
 }
-/***** end of initialization methods */ 
+/***** end of initialization methods */
 
 bool cont_play = TRUE;
 
 /**  declaration of methods to playing of game **/
-void pause(void);
+void pause_game(void);
 void play(void);
 void delay(void);
 void check_command(void);
@@ -239,10 +239,10 @@ void delay()
 	for(int i=0; i < 100000000; ++i);
 }
 
-void check_command(void) 
-{ 
-    // Store the value argument passed to this thread 
-    //int *myid = (int *)vargp; 
+void check_command(void)
+{
+    // Store the value argument passed to this thread
+    //int *myid = (int *)vargp;
 	int c = -10;
 	c= getch();
 	enum Direction dir;
@@ -289,7 +289,7 @@ void check_command(void)
 			c_TAIL = c_HEAD;
 		}
 		else
-		{			
+		{
 			command* cmd = (command*)malloc(sizeof(command));
 			cmd->location = HEAD->location;
 			cmd->dir = dir;
@@ -298,7 +298,7 @@ void check_command(void)
 			c_TAIL = cmd;
 		}
 	}
-	
+
 }
 
 void play(void)
